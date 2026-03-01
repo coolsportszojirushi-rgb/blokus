@@ -1,588 +1,262 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ブロックス オンライン</title>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --p1:#e53935;--p2:#1e88e5;--p3:#43a047;--p4:#fb8c00;
-    --p1l:#ff8a80;--p2l:#82b1ff;--p3l:#b9f6ca;--p4l:#ffe57f;
-    --bg:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;
-    --text:#f0f0f0;--text2:#aaa;--line:#c0c0c0;
-  }
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:var(--bg);font-family:'Nunito',sans-serif;color:var(--text);
-    min-height:100vh;display:flex;flex-direction:column;align-items:center;}
-  h1{font-family:'Fredoka One',cursive;font-size:clamp(2rem,5vw,3.2rem);
-    letter-spacing:4px;margin:16px 0 4px;
-    background:linear-gradient(135deg,var(--p1),var(--p4),var(--p3),var(--p2));
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-  .subtitle{color:var(--text2);font-size:0.82rem;margin-bottom:12px;}
-
-  #lobby-screen{background:var(--bg2);border:2px solid #333;border-radius:20px;
-    padding:28px 32px;max-width:480px;width:92%;margin-bottom:20px;}
-  #lobby-screen h2{font-family:'Fredoka One',cursive;font-size:1.4rem;margin-bottom:16px;text-align:center;}
-  .field-label{font-size:0.8rem;color:var(--text2);font-weight:700;margin-bottom:5px;display:block;}
-  .text-input{width:100%;padding:10px 12px;background:var(--bg3);border:2px solid #444;
-    border-radius:8px;color:var(--text);font-family:'Nunito',sans-serif;font-size:0.95rem;
-    outline:none;transition:border-color 0.2s;margin-bottom:14px;}
-  .text-input:focus{border-color:#888;}
-  .divider{text-align:center;color:var(--text2);font-size:0.8rem;margin:4px 0 14px;}
-  .join-row{display:flex;gap:8px;margin-bottom:14px;}
-  .join-row .text-input{margin-bottom:0;font-family:'Fredoka One',cursive;
-    font-size:1.1rem;letter-spacing:6px;text-align:center;text-transform:uppercase;}
-  .big-btn{width:100%;padding:13px;border:none;border-radius:12px;cursor:pointer;
-    font-family:'Fredoka One',cursive;font-size:1.05rem;letter-spacing:1px;
-    transition:filter 0.2s,transform 0.15s;margin-bottom:10px;}
-  .big-btn:hover{filter:brightness(1.15);transform:scale(1.02);}
-  .btn-create{background:linear-gradient(135deg,#e53935,#c62828);color:#fff;}
-  .btn-join{background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;width:auto;padding:10px 18px;margin-bottom:0;}
-  #lobby-error{color:#e53935;font-size:0.8rem;margin-top:4px;min-height:18px;text-align:center;}
-
-  #room-view{display:none;margin-top:16px;}
-  .room-code-box{background:var(--bg3);border-radius:12px;padding:16px;
-    margin:0 0 14px;border:2px solid #555;text-align:center;}
-  .room-code-label{font-size:0.78rem;color:var(--text2);margin-bottom:6px;}
-  .room-code{font-family:'Fredoka One',cursive;font-size:2.4rem;letter-spacing:10px;
-    color:#fff;cursor:pointer;user-select:all;}
-  .room-code:hover{color:#ffd700;}
-  .copy-hint{font-size:0.7rem;color:var(--text2);margin-top:4px;}
-  .players-waiting{margin-bottom:12px;}
-  .waiting-row{display:flex;align-items:center;gap:10px;padding:8px 12px;
-    border-radius:8px;background:var(--bg3);margin-bottom:6px;}
-  .waiting-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
-  .waiting-name{font-size:0.88rem;font-weight:700;}
-  .waiting-status{font-size:0.75rem;color:var(--text2);margin-left:auto;}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-  .pulse{animation:pulse 1.2s ease-in-out infinite;}
-  .lobby-hint{font-size:0.75rem;color:var(--text2);margin-bottom:12px;text-align:center;}
-  .btn-start{width:100%;padding:12px;border:none;border-radius:12px;cursor:pointer;
-    background:linear-gradient(135deg,#43a047,#1b5e20);color:#fff;
-    font-family:'Fredoka One',cursive;font-size:1.05rem;letter-spacing:1px;
-    transition:filter 0.2s;margin-bottom:8px;}
-  .btn-start:hover{filter:brightness(1.15);}
-  .btn-start:disabled{opacity:0.45;cursor:not-allowed;}
-  .btn-leave{width:100%;padding:9px;background:transparent;border:2px solid #e53935;
-    border-radius:10px;color:#e53935;font-family:'Nunito',sans-serif;font-size:0.85rem;
-    font-weight:700;cursor:pointer;transition:all 0.15s;}
-  .btn-leave:hover{background:#3a0a0a;}
-
-  #game-screen{display:none;width:100%;}
-  .game-container{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;
-    align-items:flex-start;padding:0 12px 24px;width:100%;max-width:1100px;margin:0 auto;}
-  .board-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
-  #board{display:grid;grid-template-columns:repeat(20,1fr);border:3px solid #444;
-    border-radius:4px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);background:#e8e8e8;}
-  .cell{width:clamp(14px,2.3vw,25px);height:clamp(14px,2.3vw,25px);
-    border-right:1px solid var(--line);border-bottom:1px solid var(--line);
-    transition:background 0.08s;cursor:pointer;}
-  .cell.hl{opacity:0.65;}
-  .cell.inv{background:rgba(255,50,50,0.45)!important;}
-
-  .side-panel{display:flex;flex-direction:column;gap:10px;min-width:150px;max-width:190px;}
-  .player-panel{background:var(--bg2);border-radius:12px;padding:10px;
-    border:2px solid #333;transition:border-color 0.3s,box-shadow 0.3s;}
-  .player-panel.active{box-shadow:0 0 16px var(--accent,#fff);}
-  .player-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-  .player-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
-  .player-name{font-weight:700;font-size:0.82rem;}
-  .you-badge{font-size:0.6rem;padding:1px 5px;border-radius:999px;
-    background:#1a3a1a;color:#43a047;display:inline-block;margin-left:4px;}
-  .player-score{font-size:0.72rem;color:var(--text2);}
-  .piece-count{font-size:0.72rem;color:var(--text2);}
-  .pieces-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:170px;overflow-y:auto;}
-  .piece-btn{background:var(--bg3);border:2px solid transparent;border-radius:6px;
-    cursor:pointer;padding:4px;display:flex;justify-content:center;align-items:center;
-    transition:all 0.15s;aspect-ratio:1;}
-  .piece-btn:hover{border-color:#666;transform:scale(1.05);}
-  .piece-btn.sel{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,0.35);}
-  .piece-btn.used{opacity:0.28;cursor:not-allowed;}
-  .piece-mini{display:grid;}
-  .pmc{width:8px;height:8px;border-radius:1px;}
-
-  .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
-  button.ctrl{background:var(--bg3);color:var(--text);border:2px solid #555;border-radius:8px;
-    padding:8px 13px;font-family:'Nunito',sans-serif;font-size:0.8rem;font-weight:700;
-    cursor:pointer;transition:all 0.15s;}
-  button.ctrl:hover{background:#1a4a7a;border-color:#888;}
-  button.ctrl.danger{border-color:#e53935;}
-  button.ctrl.danger:hover{background:#4a1a1a;}
-  .status-bar{background:var(--bg2);border-radius:10px;padding:9px 18px;
-    text-align:center;font-weight:700;font-size:0.88rem;min-width:200px;border:2px solid #333;}
-  .turn-ind{font-family:'Fredoka One',cursive;font-size:1.05rem;}
-  .my-turn{font-size:0.72rem;color:#43a047;margin-top:2px;font-weight:700;
-    animation:pulse 1.2s ease-in-out infinite;}
-  .legend{font-size:0.68rem;color:var(--text2);text-align:center;}
-
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);
-    display:flex;align-items:center;justify-content:center;
-    z-index:100;opacity:0;pointer-events:none;transition:opacity 0.3s;}
-  .modal-overlay.show{opacity:1;pointer-events:all;}
-  .modal{background:var(--bg2);border:3px solid #444;border-radius:20px;
-    padding:28px 36px;text-align:center;max-width:380px;width:90%;
-    transform:scale(0.8);transition:transform 0.3s;}
-  .modal-overlay.show .modal{transform:scale(1);}
-  .modal h2{font-family:'Fredoka One',cursive;font-size:1.8rem;margin-bottom:12px;}
-  .result-row{display:flex;justify-content:space-between;padding:6px 12px;
-    border-radius:8px;margin-bottom:6px;font-weight:700;}
-  .modal-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
-
-  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:#333;color:#fff;padding:10px 20px;border-radius:10px;
-    font-size:0.85rem;font-weight:700;opacity:0;transition:all 0.3s;z-index:200;pointer-events:none;}
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブロックス・オンライン</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        #lobby-screen, #game-screen {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        #game-screen {
+            max-width: 800px;
+            display: none;
+        }
+        input {
+            width: 80%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .room-code-display {
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: #e74c3c;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .status-message {
+            margin-top: 15px;
+            color: #7f8c8d;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(20, 20px);
+            grid-template-rows: repeat(20, 20px);
+            gap: 1px;
+            background-color: #bdc3c7;
+            border: 2px solid #7f8c8d;
+            margin: 20px auto;
+            width: max-content;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            cursor: pointer;
+        }
+        .cell:hover {
+            background-color: #ecf0f1;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-<h1>BLOKUS</h1>
-<p class="subtitle">🌐 オンライン通信対戦</p>
 
-<div id="lobby-screen">
-  <h2>🎮 ブロックス オンライン</h2>
-  <label class="field-label">あなたの名前</label>
-  <input class="text-input" id="cfg-name" placeholder="名前を入力..." maxlength="12">
-  <button class="big-btn btn-create" onclick="createRoom()">🏠 部屋を作る</button>
-  <div class="divider">── または ──</div>
-  <div class="join-row">
-    <input class="text-input" id="cfg-code" placeholder="XXXX" maxlength="6">
-    <button class="big-btn btn-join" onclick="joinRoom()">🚪 参加</button>
-  </div>
-  <div id="lobby-error"></div>
+    <h1>ブロックス・オンライン</h1>
 
-  <div id="room-view">
-    <div class="room-code-box">
-      <div class="room-code-label">📋 このコードを友達にシェア！</div>
-      <div class="room-code" id="room-code-display" onclick="copyCode()">----</div>
-      <div class="copy-hint">クリックでコピー</div>
+    <div id="lobby-screen">
+        <h2>ゲームに参加する</h2>
+        <input type="text" id="player-name" placeholder="あなたの名前を入力してください">
+        <br>
+        <button id="btn-create-room">部屋を作る</button>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        <input type="text" id="room-code-input" placeholder="4桁のルームコードを入力" maxlength="4">
+        <br>
+        <button id="btn-join-room" style="background-color: #2ecc71;">参加する</button>
+        <div id="lobby-status" class="status-message"></div>
     </div>
-    <div class="players-waiting" id="lobby-players"></div>
-    <p class="lobby-hint">2〜4人集まったらホストがゲームを開始できます</p>
-    <button class="btn-start" id="btn-start" onclick="hostStart()" disabled>▶ ゲーム開始！</button>
-    <button class="btn-leave" onclick="leaveRoom()">退出する</button>
-  </div>
-</div>
 
-<div id="game-screen">
-  <div class="game-container">
-    <div class="side-panel">
-      <div class="player-panel" id="pp0" style="--accent:var(--p1)">
-        <div class="player-header">
-          <div class="player-dot" style="background:var(--p1)"></div>
-          <div><div class="player-name" id="pname0">-</div>
-          <div class="player-score" id="score0">スコア: 0</div>
-          <div class="piece-count" id="pcount0">残: 21</div></div>
-        </div>
-        <div class="pieces-grid" id="pieces0"></div>
-      </div>
-      <div class="player-panel" id="pp2" style="--accent:var(--p3)">
-        <div class="player-header">
-          <div class="player-dot" style="background:var(--p3)"></div>
-          <div><div class="player-name" id="pname2">-</div>
-          <div class="player-score" id="score2">スコア: 0</div>
-          <div class="piece-count" id="pcount2">残: 21</div></div>
-        </div>
-        <div class="pieces-grid" id="pieces2"></div>
-      </div>
+    <div id="game-screen">
+        <div class="player-info" id="player-list">
+            </div>
+        <div id="current-room-display" class="room-code-display"></div>
+        <div id="board"></div>
+        <div id="game-status" class="status-message">他のプレイヤーを待っています...</div>
     </div>
-    <div class="board-wrap">
-      <div class="status-bar">
-        <div class="turn-ind" id="turn-text">接続中...</div>
-        <div class="my-turn" id="my-turn-msg" style="display:none">✨ あなたのターンです！</div>
-      </div>
-      <div id="board"></div>
-      <div class="controls">
-        <button class="ctrl" id="btn-rot" onclick="rotatePiece()">↻ 回転</button>
-        <button class="ctrl" id="btn-flip" onclick="flipPiece()">↔ 反転</button>
-        <button class="ctrl" id="btn-skip" onclick="skipTurn()">スキップ</button>
-        <button class="ctrl danger" onclick="leaveGame()">🚪 退出</button>
-      </div>
-      <div class="legend">ピース選択 → ボードをクリックで配置 | 右クリック: 回転</div>
-    </div>
-    <div class="side-panel">
-      <div class="player-panel" id="pp1" style="--accent:var(--p2)">
-        <div class="player-header">
-          <div class="player-dot" style="background:var(--p2)"></div>
-          <div><div class="player-name" id="pname1">-</div>
-          <div class="player-score" id="score1">スコア: 0</div>
-          <div class="piece-count" id="pcount1">残: 21</div></div>
-        </div>
-        <div class="pieces-grid" id="pieces1"></div>
-      </div>
-      <div class="player-panel" id="pp3" style="--accent:var(--p4)">
-        <div class="player-header">
-          <div class="player-dot" style="background:var(--p4)"></div>
-          <div><div class="player-name" id="pname3">-</div>
-          <div class="player-score" id="score3">スコア: 0</div>
-          <div class="piece-count" id="pcount3">残: 21</div></div>
-        </div>
-        <div class="pieces-grid" id="pieces3"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h2>🎮 ゲーム終了！</h2>
-    <div id="results"></div>
-    <div class="modal-btns">
-      <button class="ctrl danger" onclick="leaveGame()">🚪 退出</button>
-    </div>
-  </div>
-</div>
-<div id="toast"></div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-<script type="module">
-import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getDatabase,ref,set,get,onValue,update,onDisconnect}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+        // お客様のFirebase設定情報
+        const firebaseConfig = {
+            apiKey: "AIzaSyBR-FbFj4n2RluU4JUqH_jbwxLtGWIRESA",
+            authDomain: "blokus-game-6784c.firebaseapp.com",
+            databaseURL: "https://blokus-game-6784c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "blokus-game-6784c",
+            storageBucket: "blokus-game-6784c.firebasestorage.app",
+            messagingSenderId: "984140782107",
+            appId: "1:984140782107:web:1ac21c601d3960aca336be",
+            measurementId: "G-DZFLV3WCYZ"
+        };
 
-const FB={
-  apiKey:"AIzaSyBR-FbFj4n2RluU4JUqH_jbwxLtGWIRESA",
-  authDomain:"blokus-game-6784c.firebaseapp.com",
-  databaseURL:"https://blokus-game-6784c-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"blokus-game-6784c",
-  storageBucket:"blokus-game-6784c.firebasestorage.app",
-  messagingSenderId:"984140782107",
-  appId:"1:984140782107:web:1ac21c601d3960aca336be"
-};
+        // Firebaseの初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-let db,myId,myName,myIdx=-1,roomCode,isHost=false;
-let gs=null,selPiece=null,hovCell=null;
-let roomRef,gameRef,unsubRoom,unsubGame;
+        // 画面要素の取得
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const playerNameInput = document.getElementById('player-name');
+        const roomCodeInput = document.getElementById('room-code-input');
+        const lobbyStatus = document.getElementById('lobby-status');
+        const boardElement = document.getElementById('board');
+        const currentRoomDisplay = document.getElementById('current-room-display');
 
-const COLORS=['#e53935','#1e88e5','#43a047','#fb8c00'];
-const COLORSL=['#ff8a80','#82b1ff','#b9f6ca','#ffe57f'];
-const SC=[[0,0],[0,19],[19,19],[19,0]];
-const BS=20;
-const PS=[
-  [[0,0]],[[0,0],[0,1]],[[0,0],[0,1],[0,2]],[[0,0],[1,0],[1,1]],
-  [[0,0],[0,1],[0,2],[0,3]],[[0,0],[1,0],[2,0],[2,1]],[[0,0],[0,1],[0,2],[1,1]],
-  [[0,1],[0,2],[1,0],[1,1]],[[0,0],[0,1],[1,0],[1,1]],
-  [[0,0],[0,1],[0,2],[0,3],[0,4]],[[0,0],[1,0],[2,0],[3,0],[3,1]],
-  [[0,1],[1,0],[1,1],[2,1],[3,1]],[[0,0],[1,0],[1,1],[2,1],[3,1]],
-  [[0,0],[0,1],[1,0],[1,1],[2,0]],[[0,0],[0,1],[0,2],[1,1],[2,1]],
-  [[0,0],[0,2],[1,0],[1,1],[1,2]],[[0,0],[1,0],[2,0],[2,1],[2,2]],
-  [[0,0],[1,0],[1,1],[2,1],[2,2]],[[0,1],[1,0],[1,1],[1,2],[2,1]],
-  [[0,0],[0,1],[1,1],[2,1],[2,2]],[[0,1],[0,2],[1,0],[1,1],[2,1]]
-];
+        let myPlayerId = null;
+        let currentRoomId = null;
 
-function toast(m,d=2500){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),d);}
-function setErr(m){document.getElementById('lobby-error').textContent=m;}
-function genId(){return Math.random().toString(36).slice(2,10);}
-function genCode(){return Math.random().toString(36).slice(2,6).toUpperCase();}
+        // ランダムな4桁のルームコードを生成する関数
+        function generateRoomCode() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
 
-function rot(s,t){let r=s;for(let i=0;i<t;i++){r=r.map(([a,b])=>[b,-a]);const mr=Math.min(...r.map(([a])=>a)),mc=Math.min(...r.map(([,b])=>b));r=r.map(([a,b])=>[a-mr,b-mc]);}return r;}
-function flip(s){let r=s.map(([a,b])=>[a,-b]);const mc=Math.min(...r.map(([,b])=>b));return r.map(([a,b])=>[a,b-mc]);}
-function norm(s){const mr=Math.min(...s.map(([a])=>a)),mc=Math.min(...s.map(([,b])=>b));return s.map(([a,b])=>[a-mr,b-mc]);}
-function skey(s){return norm(s).map(c=>c.join(',')).sort().join('|');}
-function allOr(s){const seen=new Set(),res=[];for(let f=0;f<2;f++)for(let r=0;r<4;r++){let x=f?flip(s):s;x=rot(x,r);x=norm(x);const k=skey(x);if(!seen.has(k)){seen.add(k);res.push(x);}}return res;}
-function curShape(){if(!selPiece)return null;let s=selPiece.shape;if(selPiece.flipped)s=flip(s);s=rot(s,selPiece.rotation);return norm(s);}
+        // 部屋を作るボタンの処理
+        document.getElementById('btn-create-room').addEventListener('click', async () => {
+            const name = playerNameInput.value.trim();
+            if (!name) {
+                lobbyStatus.textContent = "名前を入力してください。";
+                return;
+            }
 
-function dec(flat){if(!flat)return Array.from({length:BS},()=>Array(BS).fill(-1));const b=[];for(let r=0;r<BS;r++)b.push(flat.slice(r*BS,(r+1)*BS).map(Number));return b;}
+            lobbyStatus.textContent = "部屋を作成中...";
+            const roomId = generateRoomCode();
+            const roomRef = ref(db, 'rooms/' + roomId);
 
-function canPlace(shape,pr,pc,pi,b2,pd){
-  let ok=false;
-  const placed=pd[pi]?.placed||false;
-  for(const[dr,dc]of shape){
-    const r=pr+dr,c=pc+dc;
-    if(r<0||r>=BS||c<0||c>=BS)return false;
-    if(b2[r][c]!==-1)return false;
-    for(const[er,ec]of[[0,1],[0,-1],[1,0],[-1,0]]){const nr=r+er,nc=c+ec;if(nr>=0&&nr<BS&&nc>=0&&nc<BS&&b2[nr][nc]===pi)return false;}
-  }
-  if(!placed){const[sr,sc]=SC[pi];for(const[dr,dc]of shape)if(pr+dr===sr&&pc+dc===sc){ok=true;break;}return ok;}
-  const cs=new Set(shape.map(([dr,dc])=>`${pr+dr},${pc+dc}`));
-  for(const[dr,dc]of shape){const r=pr+dr,c=pc+dc;for(const[er,ec]of[[1,1],[1,-1],[-1,1],[-1,-1]]){const nr=r+er,nc=c+ec;if(nr>=0&&nr<BS&&nc>=0&&nc<BS&&b2[nr][nc]===pi&&!cs.has(`${nr},${nc}`))ok=true;}}
-  return ok;
-}
+            // 初期データのセット
+            await set(roomRef, {
+                status: 'waiting',
+                players: {
+                    player1: { name: name, color: 'red' }
+                }
+            });
 
-function hasMove(pi,b2,pd){
-  for(let i=0;i<PS.length;i++){if(pd[pi]?.pieces[i])continue;for(const s of allOr(PS[i]))for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)if(canPlace(s,r,c,pi,b2,pd))return true;}
-  return false;
-}
-
-function nextP(cur,sk,pd,flat){
-  const b2=dec(flat),cnt=gs?.playerCount||4,nsk={...sk};
-  for(let t=1;t<=cnt;t++){const n=(cur+t)%cnt;if(nsk[n])continue;if(hasMove(n,b2,pd))return{np:n,nsk};nsk[n]=true;}
-  for(let p=0;p<cnt;p++){if(!nsk[p]&&hasMove(p,b2,pd))return{np:p,nsk};}
-  return{np:-1,nsk};
-}
-
-// Init Firebase
-try{
-  const app=initializeApp(FB);
-  db=getDatabase(app);
-  // Show lobby after Firebase is ready
-  document.getElementById('lobby-screen').style.display='';
-}catch(e){
-  document.body.innerHTML='<div style="color:red;padding:40px;text-align:center;font-size:1.2rem">Firebase接続エラー: '+e.message+'</div>';
-}
-
-window.createRoom=async function(){
-  setErr('');
-  myName=document.getElementById('cfg-name').value.trim()||'プレイヤー';
-  myId=genId();roomCode=genCode();isHost=true;myIdx=0;
-  roomRef=ref(db,`rooms/${roomCode}`);
-  const snap=await get(roomRef);
-  if(snap.exists()){setErr('コード重複。もう一度お試しください');return;}
-  await set(roomRef,{host:myId,status:'lobby',players:{[myId]:{id:myId,name:myName,playerIndex:0,online:true}},createdAt:Date.now()});
-  onDisconnect(ref(db,`rooms/${roomCode}/players/${myId}/online`)).set(false);
-  showRoom();listenLobby();
-};
-
-window.joinRoom=async function(){
-  setErr('');
-  myName=document.getElementById('cfg-name').value.trim()||'プレイヤー';
-  const code=document.getElementById('cfg-code').value.trim().toUpperCase();
-  if(!code){setErr('ルームコードを入力してください');return;}
-  myId=genId();roomCode=code;isHost=false;
-  roomRef=ref(db,`rooms/${roomCode}`);
-  const snap=await get(roomRef);
-  if(!snap.exists()){setErr('部屋が見つかりません');return;}
-  const room=snap.val();
-  if(room.status!=='lobby'){setErr('ゲームはすでに開始されています');return;}
-  const ex=Object.values(room.players||{});
-  if(ex.length>=4){setErr('部屋が満員です');return;}
-  const taken=ex.map(p=>p.playerIndex);
-  let idx=0;while(taken.includes(idx))idx++;
-  myIdx=idx;
-  await set(ref(db,`rooms/${roomCode}/players/${myId}`),{id:myId,name:myName,playerIndex:myIdx,online:true});
-  onDisconnect(ref(db,`rooms/${roomCode}/players/${myId}/online`)).set(false);
-  showRoom();listenLobby();
-};
-
-function showRoom(){
-  document.getElementById('room-view').style.display='block';
-  document.getElementById('room-code-display').textContent=roomCode;
-}
-
-function listenLobby(){
-  unsubRoom=onValue(roomRef,snap=>{
-    if(!snap.exists()){toast('部屋が解散されました');resetLobby();return;}
-    const room=snap.val();
-    renderLobbyPlayers(room.players||{});
-    if(room.status==='playing')startGame();
-  });
-}
-
-function renderLobbyPlayers(players){
-  const c=document.getElementById('lobby-players');
-  c.innerHTML='';
-  const sorted=Object.values(players).sort((a,b)=>a.playerIndex-b.playerIndex);
-  sorted.forEach(p=>{
-    const row=document.createElement('div');row.className='waiting-row';
-    row.innerHTML=`<div class="waiting-dot" style="background:${COLORS[p.playerIndex]}"></div>
-      <div class="waiting-name">${p.name}${p.id===myId?' <span style="font-size:0.7rem;color:#43a047">(あなた)</span>':''}</div>
-      <div class="waiting-status ${p.online?'pulse':''}">${p.online?'✅ 接続中':'⚠ 切断'}</div>`;
-    c.appendChild(row);
-  });
-  const online=Object.values(players).filter(p=>p.online).length;
-  const btn=document.getElementById('btn-start');
-  if(isHost){
-    btn.style.display='block';
-    if(online>=2){btn.disabled=false;btn.textContent=`▶ ゲーム開始！(${online}人)`;}
-    else{btn.disabled=true;btn.textContent='あと1人必要です...';}
-  }else{btn.style.display='none';}
-}
-
-window.copyCode=function(){navigator.clipboard.writeText(roomCode).catch(()=>{});toast('コピーしました！');};
-
-window.hostStart=async function(){
-  const snap=await get(roomRef);
-  const room=snap.val();
-  const players=Object.values(room.players||{}).filter(p=>p.online).sort((a,b)=>a.playerIndex-b.playerIndex);
-  const pd={};
-  players.forEach(p=>{pd[p.playerIndex]={pieces:Array(21).fill(false),placed:false,name:p.name};});
-  await update(roomRef,{status:'playing',gameState:{board:Array(400).fill(-1),currentPlayer:0,playerData:pd,playerCount:players.length,skipped:{},status:'playing'}});
-};
-
-function startGame(){
-  if(unsubRoom){unsubRoom();unsubRoom=null;}
-  document.getElementById('lobby-screen').style.display='none';
-  document.getElementById('game-screen').style.display='';
-  gameRef=ref(db,`rooms/${roomCode}/gameState`);
-  unsubGame=onValue(gameRef,snap=>{
-    if(!snap.exists())return;
-    gs=snap.val();
-    renderAll();
-  });
-}
-
-function renderAll(){
-  if(!gs)return;
-  const b2=dec(gs.board);
-  renderBoard(b2);renderPieces(b2);updateUI(b2);
-  if(gs.status==='ended')showEnd();
-}
-
-function renderBoard(b2){
-  const el=document.getElementById('board');el.innerHTML='';
-  for(let r=0;r<BS;r++)for(let c=0;c<BS;c++){
-    const cell=document.createElement('div');cell.className='cell';
-    cell.dataset.r=r;cell.dataset.c=c;
-    cell.style.background=b2[r][c]>=0?COLORS[b2[r][c]]:'#e8e8e8';
-    cell.addEventListener('mouseenter',()=>onHov(r,c,b2));
-    cell.addEventListener('mouseleave',()=>clrHov(b2));
-    cell.addEventListener('click',()=>onClick(r,c,b2));
-    cell.addEventListener('contextmenu',e=>{e.preventDefault();rotatePiece();});
-    el.appendChild(cell);
-  }
-}
-
-function gce(r,c){return document.querySelector(`#board .cell[data-r="${r}"][data-c="${c}"]`);}
-
-function clrHov(b2){
-  document.querySelectorAll('.cell.hl,.cell.inv').forEach(el=>{
-    el.classList.remove('hl','inv');
-    const r=+el.dataset.r,c=+el.dataset.c;
-    el.style.background=b2[r][c]>=0?COLORS[b2[r][c]]:'#e8e8e8';
-  });
-}
-
-function onHov(pr,pc,b2){
-  clrHov(b2);hovCell=[pr,pc];
-  if(!selPiece||gs?.currentPlayer!==myIdx)return;
-  const shape=curShape();if(!shape)return;
-  const v=canPlace(shape,pr,pc,myIdx,b2,gs.playerData);
-  for(const[dr,dc]of shape){
-    const r=pr+dr,c=pc+dc;if(r<0||r>=BS||c<0||c>=BS)continue;
-    const el=gce(r,c);if(!el)continue;
-    if(!v){el.classList.add('inv');el.style.background='rgba(255,50,50,0.45)';}
-    else{el.classList.add('hl');el.style.background=COLORSL[myIdx];}
-  }
-}
-
-async function onClick(r,c,b2){
-  if(!selPiece||gs?.currentPlayer!==myIdx||gs?.status!=='playing')return;
-  const shape=curShape();
-  if(!canPlace(shape,r,c,myIdx,b2,gs.playerData))return;
-  const nb=[...gs.board];
-  for(const[dr,dc]of shape)nb[(r+dr)*BS+(c+dc)]=myIdx;
-  const npd=JSON.parse(JSON.stringify(gs.playerData));
-  npd[myIdx].pieces[selPiece.pieceIdx]=true;npd[myIdx].placed=true;
-  selPiece=null;hovCell=null;
-  const{np,nsk}=nextP(myIdx,gs.skipped||{},npd,nb);
-  await update(gameRef,{board:nb,playerData:npd,currentPlayer:np,skipped:nsk,status:np===-1?'ended':'playing'});
-}
-
-window.rotatePiece=function(){
-  if(!selPiece)return;selPiece.rotation=(selPiece.rotation+1)%4;
-  if(hovCell&&gs)onHov(...hovCell,dec(gs.board));
-  if(gs)renderPieces(dec(gs.board));
-};
-window.flipPiece=function(){
-  if(!selPiece)return;selPiece.flipped=!selPiece.flipped;
-  if(hovCell&&gs)onHov(...hovCell,dec(gs.board));
-  if(gs)renderPieces(dec(gs.board));
-};
-window.skipTurn=async function(){
-  if(!gs||gs.currentPlayer!==myIdx)return;
-  const nsk={...gs.skipped||{},[myIdx]:true};
-  const{np,nsk:ns}=nextP(myIdx,nsk,gs.playerData,gs.board);
-  await update(gameRef,{currentPlayer:np,skipped:ns,status:np===-1?'ended':'playing'});
-};
-
-function renderPieces(b2){
-  const cnt=gs?.playerCount||4;
-  for(let p=0;p<4;p++){
-    const con=document.getElementById(`pieces${p}`);con.innerHTML='';
-    if(p>=cnt)continue;
-    const pd=gs?.playerData?.[p];if(!pd)continue;
-    const mine=p===myIdx&&gs?.currentPlayer===myIdx;
-    PS.forEach((raw,idx)=>{
-      const used=pd.pieces[idx]||false;
-      const btn=document.createElement('button');btn.className='piece-btn';
-      if(used)btn.classList.add('used');
-      if(selPiece&&selPiece.playerIdx===p&&selPiece.pieceIdx===idx)btn.classList.add('sel');
-      let shape=raw;
-      if(selPiece&&selPiece.playerIdx===p&&selPiece.pieceIdx===idx){
-        if(selPiece.flipped)shape=flip(shape);shape=rot(shape,selPiece.rotation);shape=norm(shape);
-      }
-      const mr=Math.max(...shape.map(([r])=>r)),mc=Math.max(...shape.map(([,c])=>c));
-      const rows=mr+1,cols=mc+1;
-      const mini=document.createElement('div');mini.className='piece-mini';
-      mini.style.gridTemplateColumns=`repeat(${cols},8px)`;
-      mini.style.gridTemplateRows=`repeat(${rows},8px)`;
-      const grid=Array.from({length:rows},()=>Array(cols).fill(false));
-      shape.forEach(([r,c])=>{grid[r][c]=true;});
-      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-        const mc2=document.createElement('div');mc2.className='pmc';
-        mc2.style.background=grid[r][c]?(mine?COLORS[p]:COLORS[p]+'88'):'transparent';
-        mini.appendChild(mc2);
-      }
-      btn.appendChild(mini);
-      if(!used&&mine){
-        btn.addEventListener('click',()=>{
-          if(selPiece&&selPiece.pieceIdx===idx&&selPiece.playerIdx===p)selPiece=null;
-          else selPiece={playerIdx:p,pieceIdx:idx,shape:raw,rotation:0,flipped:false};
-          if(b2)clrHov(b2);renderPieces(b2);
+            myPlayerId = 'player1';
+            currentRoomId = roomId;
+            enterGameScreen(roomId);
         });
-      }
-      con.appendChild(btn);
-    });
-  }
-}
 
-function updateUI(b2){
-  if(!gs)return;
-  const cnt=gs.playerCount||4,cur=gs.currentPlayer,mine=cur===myIdx;
-  for(let p=0;p<4;p++)document.getElementById(`pp${p}`).classList.toggle('active',p===cur);
-  for(let p=0;p<cnt;p++){
-    const pd=gs.playerData?.[p];
-    if(pd){
-      document.getElementById(`pname${p}`).innerHTML=`${pd.name}${p===myIdx?'<span class="you-badge">あなた</span>':''}`;
-    }
-  }
-  const pd=gs.playerData?.[cur];
-  const tt=document.getElementById('turn-text');
-  tt.textContent=pd?`${pd.name} のターン`:'---';tt.style.color=COLORS[cur]||'#fff';
-  document.getElementById('my-turn-msg').style.display=mine&&gs.status==='playing'?'block':'none';
-  ['btn-rot','btn-flip','btn-skip'].forEach(id=>{
-    const el=document.getElementById(id);el.style.opacity=mine?'1':'0.35';el.style.pointerEvents=mine?'':'none';
-  });
-  for(let p=0;p<cnt;p++){
-    let cells=0;for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)if(b2[r][c]===p)cells++;
-    const pd2=gs.playerData?.[p];
-    const rem=PS.filter((_,i)=>pd2&&!pd2.pieces[i]).reduce((s,sh)=>s+sh.length,0);
-    const au=pd2?.pieces.every(Boolean);
-    let sc=cells-rem;if(au)sc+=15;
-    document.getElementById(`score${p}`).textContent=`スコア: ${sc}`;
-    document.getElementById(`pcount${p}`).textContent=`残: ${21-(pd2?.pieces.filter(Boolean).length||0)}`;
-  }
-}
+        // 参加するボタンの処理
+        document.getElementById('btn-join-room').addEventListener('click', async () => {
+            const name = playerNameInput.value.trim();
+            const roomId = roomCodeInput.value.trim();
 
-function showEnd(){
-  if(!gs)return;
-  const cnt=gs.playerCount||4,b2=dec(gs.board);
-  let scores=[];
-  for(let p=0;p<cnt;p++){
-    let cells=0;for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)if(b2[r][c]===p)cells++;
-    const pd=gs.playerData?.[p];
-    const rem=PS.filter((_,i)=>pd&&!pd.pieces[i]).reduce((s,sh)=>s+sh.length,0);
-    const au=pd?.pieces.every(Boolean);let total=cells-rem;if(au)total+=15;
-    scores.push({p,total,name:pd?.name||`P${p+1}`});
-  }
-  scores.sort((a,b)=>b.total-a.total);
-  document.getElementById('results').innerHTML=scores.map((s,i)=>`
-    <div class="result-row" style="background:${COLORS[s.p]}22;color:${COLORS[s.p]}">
-      <span>${i===0?'🥇':i===1?'🥈':i===2?'🥉':'4位'} ${s.name}${s.p===myIdx?' (あなた)':''}</span>
-      <span>${s.total}点</span>
-    </div>`).join('');
-  document.getElementById('modal').classList.add('show');
-}
+            if (!name || !roomId) {
+                lobbyStatus.textContent = "名前とルームコードの両方を入力してください。";
+                return;
+            }
 
-function resetLobby(){
-  if(unsubGame){unsubGame();unsubGame=null;}
-  if(unsubRoom){unsubRoom();unsubRoom=null;}
-  document.getElementById('game-screen').style.display='none';
-  document.getElementById('lobby-screen').style.display='';
-  document.getElementById('room-view').style.display='none';
-  document.getElementById('modal').classList.remove('show');
-  gs=null;selPiece=null;hovCell=null;roomCode='';isHost=false;myIdx=-1;
-}
-window.leaveGame=resetLobby;
-window.leaveRoom=resetLobby;
-</script>
+            lobbyStatus.textContent = "部屋を探しています...";
+            const roomRef = ref(db, 'rooms/' + roomId);
+            const snapshot = await get(roomRef);
+
+            if (snapshot.exists()) {
+                const roomData = snapshot.val();
+                const playersCount = Object.keys(roomData.players || {}).length;
+
+                if (playersCount >= 4) {
+                    lobbyStatus.textContent = "この部屋はすでに満員です。";
+                    return;
+                }
+
+                myPlayerId = 'player' + (playersCount + 1);
+                const colors = ['red', 'blue', 'green', 'orange'];
+                
+                // プレイヤーの追加
+                await update(ref(db, `rooms/${roomId}/players`), {
+                    [myPlayerId]: { name: name, color: colors[playersCount] }
+                });
+
+                currentRoomId = roomId;
+                enterGameScreen(roomId);
+            } else {
+                lobbyStatus.textContent = "指定されたルームコードが見つかりません。";
+            }
+        });
+
+        // ゲーム画面への切り替えと盤面描画
+        function enterGameScreen(roomId) {
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            currentRoomDisplay.textContent = "ルームコード: " + roomId;
+            createBoard();
+            listenToRoomUpdates(roomId);
+        }
+
+        // 20x20の盤面をHTMLに生成
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 400; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                boardElement.appendChild(cell);
+            }
+        }
+
+        // データベースの変更をリアルタイムで監視
+        function listenToRoomUpdates(roomId) {
+            const roomRef = ref(db, 'rooms/' + roomId);
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updatePlayerList(data.players);
+                    if (Object.keys(data.players).length >= 2) {
+                        document.getElementById('game-status').textContent = "対戦相手が揃いました！ゲームを開始できます。（現在UI表示のテスト中です）";
+                    }
+                }
+            });
+        }
+
+        // 参加しているプレイヤー一覧の表示更新
+        function updatePlayerList(players) {
+            const playerListDiv = document.getElementById('player-list');
+            playerListDiv.innerHTML = '';
+            for (const key in players) {
+                const p = players[key];
+                playerListDiv.innerHTML += `<div><b>${p.name}</b><br><span style="color:${p.color}">■ ${p.color}</span></div>`;
+            }
+        }
+    </script>
 </body>
 </html>
