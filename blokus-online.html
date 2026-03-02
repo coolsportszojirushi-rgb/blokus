@@ -78,8 +78,8 @@
   .cell{width:clamp(14px,2.3vw,25px);height:clamp(14px,2.3vw,25px);
     border-right:1px solid var(--line);border-bottom:1px solid var(--line);
     transition:background 0.08s;cursor:pointer;}
-  .cell.hl{opacity:0.65;}
-  .cell.inv{background:rgba(255,50,50,0.45)!important;}
+  .cell.hl{opacity:0.85; box-shadow: inset 0 0 5px rgba(0,0,0,0.3);}
+  .cell.inv{background:rgba(255,50,50,0.6)!important; opacity:0.85;}
 
   .side-panel{display:flex;flex-direction:column;gap:10px;min-width:150px;max-width:190px;}
   .player-panel{background:var(--bg2);border-radius:12px;padding:10px;
@@ -114,7 +114,7 @@
   .turn-ind{font-family:'Fredoka One',cursive;font-size:1.05rem;}
   .my-turn{font-size:0.72rem;color:#43a047;margin-top:2px;font-weight:700;
     animation:pulse 1.2s ease-in-out infinite;}
-  .legend{font-size:0.68rem;color:var(--text2);text-align:center;}
+  .legend{font-size:0.68rem;color:var(--text2);text-align:center; margin-top:5px;}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);
     display:flex;align-items:center;justify-content:center;
@@ -195,10 +195,11 @@
       <div class="controls">
         <button class="ctrl" id="btn-rot" onclick="rotatePiece()">↻ 回転</button>
         <button class="ctrl" id="btn-flip" onclick="flipPiece()">↔ 反転</button>
+        <button class="ctrl" id="btn-confirm" onclick="confirmPiece()" style="display:none; background:#2ecc71; border-color:#27ae60; color:#fff;">✓ 確定</button>
         <button class="ctrl" id="btn-skip" onclick="skipTurn()">スキップ</button>
         <button class="ctrl danger" onclick="leaveGame()">🚪 退出</button>
       </div>
-      <div class="legend">ピース選択 → ボードをクリックで配置 | 右クリック: 回転</div>
+      <div class="legend">ピース選択 → ボードをタップで仮置き → 「✓ 確定」で配置完了</div>
     </div>
     <div class="side-panel">
       <div class="player-panel" id="pp1" style="--accent:var(--p2); display: none;">
@@ -249,7 +250,7 @@ const firebaseConfig = {
 };
 
 let db, myId, myName, myIdx = -1, roomCode, isHost = false;
-let gs = null, selPiece = null, hovCell = null;
+let gs = null, selPiece = null, hovCell = null, stagedPos = null;
 let roomRef, gameRef, unsubRoom, unsubGame;
 
 const COLORS = ['#e53935','#1e88e5','#43a047','#fb8c00'];
@@ -421,28 +422,45 @@ function clrHov(b2) {
   });
 }
 
-function onHov(pr, pc, b2) {
-  clrHov(b2); hovCell = [pr, pc];
-  if (!selPiece || gs?.currentPlayer !== myIdx) return;
-  const shape = curShape(); if (!shape) return;
+function drawPreview(pr, pc, b2) {
+  clrHov(b2);
+  const shape = curShape(); if (!shape) return false;
   const v = canPlace(shape, pr, pc, myIdx, b2, gs.playerData);
   for (const [dr, dc] of shape) {
     const r = pr + dr, c = pc + dc; if (r < 0 || r >= BS || c < 0 || c >= BS) continue;
     const el = document.querySelector(`#board .cell[data-r="${r}"][data-c="${c}"]`); if (!el) continue;
-    if (!v) { el.classList.add('inv'); el.style.background = 'rgba(255,50,50,0.45)'; }
+    if (!v) { el.classList.add('inv'); el.style.background = 'rgba(255,50,50,0.6)'; }
     else { el.classList.add('hl'); el.style.background = COLORSL[myIdx]; }
   }
+  return v;
 }
 
-async function onClick(r, c, b2) {
+function onHov(pr, pc, b2) {
+  if (stagedPos) return; // 仮置き中ならホバーを無視
+  hovCell = [pr, pc];
+  if (!selPiece || gs?.currentPlayer !== myIdx) return;
+  drawPreview(pr, pc, b2);
+}
+
+function onClick(r, c, b2) {
   if (!selPiece || gs?.currentPlayer !== myIdx || gs?.status !== 'playing') return;
+  stagedPos = [r, c]; // 仮置き場所を記録
+  drawPreview(r, c, b2);
+  updateUI(b2); // ボタンの表示を更新
+}
+
+window.confirmPiece = async function() {
+  if (!stagedPos || !selPiece || gs?.currentPlayer !== myIdx || gs?.status !== 'playing') return;
+  const r = stagedPos[0], c = stagedPos[1];
+  const b2 = dec(gs.board);
   const shape = curShape();
   if (!canPlace(shape, r, c, myIdx, b2, gs.playerData)) return;
+
   const nb = [...gs.board];
   for (const [dr, dc] of shape) nb[(r + dr) * BS + (c + dc)] = myIdx;
   const npd = JSON.parse(JSON.stringify(gs.playerData));
   npd[myIdx].pieces[selPiece.pieceIdx] = true; npd[myIdx].placed = true;
-  selPiece = null; hovCell = null;
+  selPiece = null; stagedPos = null; hovCell = null;
   
   // 次のプレイヤーを探す処理
   let np = -1;
@@ -452,25 +470,32 @@ async function onClick(r, c, b2) {
   for (let t = 1; t <= cnt; t++) {
       const n = (myIdx + t) % cnt;
       if (nsk[n]) continue;
-      // 簡易的なスキップ判定（正確な判定は省略し、とりあえず次のプレイヤーに回す）
       np = n;
       break;
   }
   if(np === myIdx) { np = -1; }
 
   await update(gameRef, { board: nb, playerData: npd, currentPlayer: np, skipped: nsk, status: np === -1 ? 'ended' : 'playing' });
-}
+};
 
 window.rotatePiece = function () {
   if (!selPiece) return; selPiece.rotation = (selPiece.rotation + 1) % 4;
-  if (hovCell && gs) onHov(...hovCell, dec(gs.board));
-  if (gs) renderPieces(dec(gs.board));
+  const b2 = dec(gs.board);
+  if (stagedPos) drawPreview(stagedPos[0], stagedPos[1], b2);
+  else if (hovCell) drawPreview(hovCell[0], hovCell[1], b2);
+  if (gs) renderPieces(b2);
+  updateUI(b2);
 };
+
 window.flipPiece = function () {
   if (!selPiece) return; selPiece.flipped = !selPiece.flipped;
-  if (hovCell && gs) onHov(...hovCell, dec(gs.board));
-  if (gs) renderPieces(dec(gs.board));
+  const b2 = dec(gs.board);
+  if (stagedPos) drawPreview(stagedPos[0], stagedPos[1], b2);
+  else if (hovCell) drawPreview(hovCell[0], hovCell[1], b2);
+  if (gs) renderPieces(b2);
+  updateUI(b2);
 };
+
 window.skipTurn = async function () {
   if (!gs || gs.currentPlayer !== myIdx) return;
   const nsk = { ...gs.skipped || {}, [myIdx]: true };
@@ -522,9 +547,16 @@ function renderPieces(b2) {
       btn.appendChild(mini);
       if (!used && mine) {
         btn.addEventListener('click', () => {
-          if (selPiece && selPiece.pieceIdx === idx && selPiece.playerIdx === p) selPiece = null;
-          else selPiece = { playerIdx: p, pieceIdx: idx, shape: raw, rotation: 0, flipped: false };
-          if (b2) clrHov(b2); renderPieces(b2);
+          if (selPiece && selPiece.pieceIdx === idx && selPiece.playerIdx === p) {
+            selPiece = null;
+            stagedPos = null; // ピース選択解除時に仮置きもリセット
+          } else {
+            selPiece = { playerIdx: p, pieceIdx: idx, shape: raw, rotation: 0, flipped: false };
+            stagedPos = null; // 新しいピースを選んだら仮置きをリセット
+          }
+          if (b2) clrHov(b2); 
+          updateUI(b2); 
+          renderPieces(b2);
         });
       }
       con.appendChild(btn);
@@ -550,9 +582,27 @@ function updateUI(b2) {
   const tt = document.getElementById('turn-text');
   tt.textContent = pd ? `${pd.name} のターン` : '---'; tt.style.color = COLORS[cur] || '#fff';
   document.getElementById('my-turn-msg').style.display = mine && gs.status === 'playing' ? 'block' : 'none';
-  ['btn-rot', 'btn-flip', 'btn-skip'].forEach(id => {
+  
+  // 仮置き状態に応じて確定ボタンとスキップボタンの表示を切り替え
+  const validStage = stagedPos && selPiece ? canPlace(curShape(), stagedPos[0], stagedPos[1], myIdx, b2, gs.playerData) : false;
+  const btnConfirm = document.getElementById('btn-confirm');
+  const btnSkip = document.getElementById('btn-skip');
+  
+  if (btnConfirm) {
+      btnConfirm.style.display = (mine && stagedPos) ? 'inline-block' : 'none';
+      btnConfirm.disabled = !validStage;
+      btnConfirm.style.opacity = validStage ? '1' : '0.4';
+      btnConfirm.style.cursor = validStage ? 'pointer' : 'not-allowed';
+  }
+  if (btnSkip) {
+      btnSkip.style.display = (mine && !stagedPos) ? 'inline-block' : 'none';
+  }
+
+  ['btn-rot', 'btn-flip'].forEach(id => {
     const el = document.getElementById(id); el.style.opacity = mine ? '1' : '0.35'; el.style.pointerEvents = mine ? '' : 'none';
   });
+  if(btnSkip) { btnSkip.style.opacity = mine ? '1' : '0.35'; btnSkip.style.pointerEvents = mine ? '' : 'none'; }
+
   for (let p = 0; p < cnt; p++) {
     let cells = 0; for (let r = 0; r < BS; r++) for (let c = 0; c < BS; c++) if (b2[r][c] === p) cells++;
     const pd2 = gs.playerData?.[p];
@@ -600,7 +650,7 @@ function resetLobby() {
   document.getElementById('lobby-screen').style.display = 'block';
   document.getElementById('room-view').style.display = 'none';
   document.getElementById('modal').classList.remove('show');
-  gs = null; selPiece = null; hovCell = null; roomCode = ''; isHost = false; myIdx = -1;
+  gs = null; selPiece = null; hovCell = null; stagedPos = null; roomCode = ''; isHost = false; myIdx = -1;
 }
 window.leaveGame = resetLobby;
 window.leaveRoom = resetLobby;
